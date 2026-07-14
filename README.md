@@ -4,7 +4,7 @@
 
 Serves the [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (256 experts, 378 GB, in-checkpoint MTP) on an **8-node GB10 cluster** via TP8 + PP1 with MTP k=4.
 
-**Current production config:** TP8 + PP1 (1,211 t/s prefill, 35 t/s decode, 54 t/s game bench, 91/100 tool eval)  
+**Current production config:** TP8 + PP1 (1,211 t/s prefill, 35 t/s decode coherent corpus, 54 t/s game bench, 91/100 tool eval)  
 **Experimental:** TP4 + PP2 (blocked on MTP acceptance ~8% vs expected ~85%)
 
 | Config | Prefill (t/s) | Decode (t/s) | MTP Acceptance |
@@ -27,13 +27,11 @@ cd ../gb10-glm-5.2
 # 3. Deploy & run (from spark-vllm-docker)
 cd ../spark-vllm-docker
 ./run-recipe.sh ../gb10-glm-5.2/recipes/glm52-int4int8-v16.yaml --setup
-# or use the manage script:
-# ../gb10-glm-5.2/manage-glm52-int4int8.sh start
 ```
 
 ## Build Stack
 
-Starting from CosmicRaisins' DCP1 solution (TP8+PP1, MTP k=4, B12X_MLA_SPARSE), this image upgrades to the v16 unified branch and adds targeted patches + a runtime mod.
+Starting from CosmicRaisins' DCP1 solution (TP8+PP1, MTP k=4, B12X_MLA_SPARSE), this image upgrades to the codex/fathomless-firmament-v16-unified-20260712 unified branch and adds targeted patches + a runtime mod.
 
 ### Base versions
 
@@ -77,19 +75,19 @@ Both recipes reference the same image tag: `vllm-node-tf5-glm52-v16:latest`
 
 - 8× GB10 / DGX Spark (sm_121, aarch64)
 - Node-to-node RoCE v2 (ConnectX-7, subnet 192.168.177.0/24)
-- ~410 GB weights per node (or NFS-mounted at `/home/ciprian/models/models14`)
+- ~410 GB weights per node (or NFS-mounted)
 - eugr/spark-vllm-docker for build + deploy
 
 ## Performance (llama-benchy, coherent corpus, tg=1500)
 
-| Depth | Prefill (t/s) | Peak decode (t/s) | TTFR (ms) |
-|-------|--------------:|------------------:|----------:|
-| 0 | 1,211 ± 0.9 | 53.5 ± 3.5 | 1,693 |
-| 4k | 1,117 ± 100.7 | 58.0 ± 0.0 | 5,461 |
-| 16k | 1,215 ± 23.8 | 58.0 ± 0.0 | 14,867 |
-| 32k | 1,176 ± 4.7 | 54.5 ± 2.5 | 28,963 |
-| 100k | 1,128 ± 0.9 | 51.5 ± 1.5 | 90,448 |
-| 200k | 1,019 ± 0.0 | 50.0 ± 0.0 | 198,327 |
+| Depth | Prefill (t/s) | Avg decode (t/s) | Peak decode (t/s) | TTFR (ms) |
+|-------|--------------:|-----------------:|------------------:|----------:|
+| 0 | 1,211 ± 0.9 | 34.9 ± 2.8 | 53.5 ± 3.5 | 1,693 |
+| 4k | 1,117 ± 100.7 | 38.3 ± 0.5 | 58.0 ± 0.0 | 5,461 |
+| 16k | 1,215 ± 23.8 | 37.7 ± 0.0 | 58.0 ± 0.0 | 14,867 |
+| 32k | 1,176 ± 4.7 | 33.3 ± 2.7 | 54.5 ± 2.5 | 28,963 |
+| 100k | 1,128 ± 0.9 | 34.8 ± 3.8 | 51.5 ± 1.5 | 90,448 |
+| 200k | 1,019 ± 0.0 | 37.8 ± 0.0 | 50.0 ± 0.0 | 198,327 |
 
 **Game bench (Snake, 1500 tokens, temp=0, thinking=disabled):** 54.2 tok/s sustained
 
