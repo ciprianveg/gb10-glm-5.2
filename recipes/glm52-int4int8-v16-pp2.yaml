@@ -1,4 +1,4 @@
-# GLM-5.2 Int4-Int8Mix (TP=4 + PP=2 on 8× GB10 / DGX Spark, unpruned QuantTrio)
+# GLM-5.2 Int4-Int8Mix (TP=4 + PP=2 on 8× GB10 / DGX Spark, QuantTrio)
 #
 # v16 stack: local-inference-lab/vllm @fathomless-firmament-v16-unified + b12x master
 # TP=4 + PP=2 across 8 nodes, DCP=1 (disabled; DCP patches retained for future DCP>1 use).
@@ -32,7 +32,7 @@
 
 recipe_version: "1"
 name: GLM-5.2-Int4-Int8-TP4-PP2
-description: GLM-5.2 Int4-Int8Mix (unpruned QuantTrio) on 8× GB10, TP=4 + PP=2, MTP k=4
+description: GLM-5.2 Int4-Int8Mix (QuantTrio) on 8× GB10, TP=4 + PP=2, MTP k=4
 raw_entrypoint: true
 shared_weights_nfs: true
 cluster_only: true

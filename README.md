@@ -2,10 +2,10 @@
 
 ## Overview
 
-Serves the [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (256 experts, 378 GB, in-checkpoint MTP) on an **8-node GB10 cluster** via TP8 + PP1 with MTP k=4.
+Serves the [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (in-checkpoint MTP) on an **8-node GB10 cluster** via TP8 + PP1 with MTP k=4.
 
-**Current production config:** TP8 + PP1 (1,211 t/s prefill, 35 t/s decode coherent corpus, 54 t/s game bench, 91/100 tool eval)  
-**Experimental:** TP4 + PP2 (blocked on MTP acceptance ~8% vs expected ~85%)
+**Current production config:** TP8 + PP1 (1,211 t/s prefill, 35 t/s decode coherent corpus, 54 t/s game bench, 91/100 tool eval — relies on the `fix-fsm-toolcall` mod for stable MTP tool calling)
+**Experimental:** TP4 + PP2 1800tps prefill but blocked on MTP acceptance ~8% vs expected ~85%
 
 | Config | Prefill (t/s) | Decode (t/s) | MTP Acceptance |
 |--------|--------------|--------------|----------------|
@@ -38,7 +38,7 @@ Starting from CosmicRaisins' DCP1 solution (TP8+PP1, MTP k=4, B12X_MLA_SPARSE), 
 | Component | Version | Why |
 |-----------|---------|-----|
 | vLLM fork | `local-inference-lab/vllm` @ `5dffea8` (branch `codex/fathomless-firmament-v16-unified-20260712`) | DSpark support, SM120 PCIe serving, GLM-5.2 MTP kernels, MRv2 model runner, B12X MoE integration |
-| b12x | `lukealonso/b12x` @ `97b3d64` (master) | W4A8 MoE, unified SM120 sparse MLA, PCIe DCP collectives, decode optimization (24 t/s vs 9 t/s on old branch) |
+| b12x | `lukealonso/b12x` @ `97b3d64` (master) | W4A8 MoE, unified SM120 sparse MLA, PCIe DCP collectives, decode optimization (~28–49 t/s with MTP k=4 on old branch → 33–55 t/s range) |
 | CUDA | 13.2.0 | GB10 / sm_121 support |
 | PyTorch | 2.11.0 | Pinned by v16 branch |
 | FlashInfer | Prebuilt sm_121 wheels | Sparse MLA attention kernels |
@@ -60,9 +60,14 @@ Starting from CosmicRaisins' DCP1 solution (TP8+PP1, MTP k=4, B12X_MLA_SPARSE), 
 
 ### Runtime mod (mods/fix-fsm-toolcall/)
 
-| Mod | Purpose |
-|-----|---------|
-| `fix-fsm-toolcall` (PR #44993) | Fixes `"Failed to advance FSM"` errors during tool calling + MTP. The v16 fork already includes PR #44297 (`trim_reasoning_for_advance`) and #46149 (`reasoning=reasoning_enabled` in structural tags), but `should_advance()` still uses `num_computed_tokens - num_output_placeholders` to derive the delta window — which breaks under MTP rejection (placeholder count stays >0, window starts past the reasoning-end marker, grammar never enforced → HTTP 500). This mod passes `new_token_ids` directly to `should_advance()`, bypassing the broken placeholder math, and extends same-step advance to all backend types. |
+**`fix-fsm-toolcall`** (PR #44993) — Fixes `"Failed to advance FSM"` errors during
+tool calling + MTP. The v16 fork already includes PR #44297 (`trim_reasoning_for_advance`)
+and #46149 (`reasoning=reasoning_enabled` in structural tags), but `should_advance()`
+still uses `num_computed_tokens - num_output_placeholders` to derive the delta window —
+which breaks under MTP rejection (placeholder count stays >0, window starts past the
+reasoning-end marker, grammar never enforced → HTTP 500). This mod passes `new_token_ids`
+directly to `should_advance()`, bypassing the broken placeholder math, and extends
+same-step advance to all backend types.
 
 ## Recipe Files
 
@@ -89,9 +94,44 @@ Both recipes reference the same image tag: `vllm-node-tf5-glm52-v16:latest`
 | 100k | 1,128 ± 0.9 | 34.8 ± 3.8 | 51.5 ± 1.5 | 90,448 |
 | 200k | 1,019 ± 0.0 | 37.8 ± 0.0 | 50.0 ± 0.0 | 198,327 |
 
-**Game bench (Snake, 1500 tokens, temp=0, thinking=disabled):** 54.2 tok/s sustained
+**Game bench (Snake, 1500 tokens, temp=0, thinking=disabled):** 54.16 tok/s sustained
 
-**Coding context** (vs coherent corpus above): avg gen 40–50 t/s single-stream, 60–70 t/s with 2 concurrent requests.
+```
+=== Game Benchmark (Single-Stream, temp=0, thinking=disabled) ===
+Waiting for server to be ready...
+Server ready after 1s
+Running game benchmark (Snake game generation)...
+Completion tokens: 1500
+Prompt tokens: 43
+Total tokens: 1543
+Wall time: 27.69s
+Average tok/s: 54.16
+```
+
+**Coding context** (vs coherent corpus above): avg gen 40–55 t/s single-stream, 60–70 t/s with 2 concurrent requests.
+
+**Long-context coding benchmark** (4000-token input, 1500-token output, single-stream):
+
+```
+=== Long-Context Benchmark ===
+Type:           coding
+Target input:   4000 tokens
+Output:         1500 tokens
+
+Actual tokens:  3999 tokens (confirmed by server)
+
+Sending request (streaming via httpx)...
+
+============ Result ============
+Input tokens:      4012
+Output tokens:     1500
+Wall time:         34.33s
+
+TTFT:              2996.0 ms
+Prefill tok/s:     1339.1
+Gen tok/s:         47.8
+Mean ITL:          20.9 ms
+```
 
 ### Tool evaluation (tool-eval-bench v2.0.0)
 
@@ -103,8 +143,6 @@ Both recipes reference the same image tag: `vllm-node-tf5-glm52-v16:latest`
 | Pass rate | 59 passed, 8 partial, 2 failed (126/138 pts) |
 | Token efficiency | 0.6 pts/1K tokens (210K tokens total) |
 | Weakest category | Toolset Scale (62%) |
-
-## License
 
 ## Attribution & Credits
 
@@ -119,7 +157,7 @@ This work stands on the shoulders of:
 | **PR #46994** (V2+MTP+PP: SupportsPP, broadcast padding, draft relay, embed_tokens, stale topk fix) | eastwood-c / vllm-project |
 | **FlashInfer SM120 kernels** | FlashInfer team |
 | **DeepGEMM SM120 support** | DeepSeek AI |
-| **QuantTrio GLM-5.2-Int4-Int8Mix** (unpruned 256-expert, in-checkpoint MTP) | QuantTrio / cyankiwi |
+| **QuantTrio GLM-5.2-Int4-Int8Mix** (256-expert, in-checkpoint MTP) | QuantTrio / cyankiwi |
 | **NCCL 2.30.4 aarch64 wheel** | NVIDIA |
 | **eugr/spark-vllm-docker** build system (multi-stage Docker, wheel caching, SCP deploy) | ciprian / eugr |
 

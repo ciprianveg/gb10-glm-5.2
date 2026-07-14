@@ -23,7 +23,7 @@ Full credit to **CosmicRaisins** for the foundational GLM-5.2-on-GB10 serving st
 | **FlashInfer** | `flashinfer-ai/flashinfer` | Prebuilt wheels (sm_121) | Apache-2.0 | Sparse MLA attention kernels, page attention |
 | **DeepGEMM** | `deepseek-ai/DeepGEMM` | `nv_dev` branch | Apache-2.0 | SM120 GEMM kernels for MoE |
 | **NCCL** | `zyang-dev/nccl` | `dgxspark-3node-ring` | BSD-3-Clause | 3-node ring collectives over RoCE |
-| **QuantTrio GLM-5.2-Int4-Int8Mix** | `QuantTrio/GLM-5.2-Int4-Int8Mix` | Latest | MIT | Model weights (unpruned 256-expert, in-checkpoint MTP) |
+| **QuantTrio GLM-5.2-Int4-Int8Mix** | `QuantTrio/GLM-5.2-Int4-Int8Mix` | Latest | MIT | Model weights (256-expert, in-checkpoint MTP) |
 | **eugr/spark-vllm-docker** | `eugr/spark-vllm-docker` | Latest | Apache-2.0 | Multi-stage Docker build, wheel caching, SCP deploy, recipe runner |
 | **CosmicRaisins/glm-5.2-gb10** | `CosmicRaisins/glm-5.2-gb10` | Latest | Apache-2.0 | Foundational GLM-5.2-on-GB10 stack: DCP patches, `index_topk_pattern` override, B12X config, `draft-quant-packed-mapping` fix |
 
