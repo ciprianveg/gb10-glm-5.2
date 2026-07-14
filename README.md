@@ -4,12 +4,12 @@
 
 Serves the [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (256 experts, 378 GB, in-checkpoint MTP) on an **8-node GB10 cluster** via TP8 + PP1 with MTP k=4.
 
-**Current production config:** TP8 + PP1 (8% faster decode, 15% faster prefill )  
+**Current production config:** TP8 + PP1 (1,211 t/s prefill, 35 t/s decode, 54 t/s game bench, 91/100 tool eval)  
 **Experimental:** TP4 + PP2 (blocked on MTP acceptance ~8% vs expected ~85%)
 
 | Config | Prefill (t/s) | Decode (t/s) | MTP Acceptance |
 |--------|--------------|--------------|----------------|
-| **TP8+PP1 (prod)** | **~1,200** | **~35** | ~85% |
+| **TP8+PP1 (prod)** | **~1,211** | **~35** | ~85% |
 | TP4+PP2 (exp) | ~1,800 | ~12 | ~8% |
 
 ## Quick Start
@@ -31,33 +31,40 @@ cd ../spark-vllm-docker
 # ../gb10-glm-5.2/manage-glm52-int4int8.sh start
 ```
 
-## What's New vs Old Image
+## Build Stack
 
-| Component | Old (`vllm-node-tf5-glm52-dcp`) | New (`vllm-node-tf5-glm52-v16`) |
-|-----------|--------------------------------|--------------------------------|
-| vLLM fork | `local-inference-lab/vllm` @ `e232d26` (branch `codex/dcp-globaltopk...`) | `local-inference-lab/vllm` @ `5dffea8` (branch `codex/fathomless-firmament-v16-unified`) |
-| b12x | `9cd63a7` | `master` @ `97b3d64` |
-| DSpark | No | Yes |
-| SM120 PCIe | No | Yes |
-| GLM-5.2 MTP kernels | Partial | Full (fused_indexer_q_rope_quant 1.9-3.3%, reduce-scatter MoE 3.1-3.2%) |
-| B12X MoE | No | Yes (W4A8, unified SM120 sparse MLA) |
-| PCIe DCP collectives | No | Yes |
-| 80eb49b decode opt | No | Yes (24 t/s vs 9 t/s) |
-| MRv2 default | No | Yes |
+Starting from CosmicRaisins' DCP1 solution (TP8+PP1, MTP k=4, B12X_MLA_SPARSE), this image upgrades to the v16 unified branch and adds targeted patches + a runtime mod.
 
-## Patches (patches/v16-final/)
+### Base versions
 
-| Patch | Purpose |
-|-------|---------|
-| `01-pr72-1-draft-dcp-config-propagation.patch` | DCP config → draft (prevents MTP collapse under DCP>1) |
-| `03-draft-quant-packed-mapping.patch` | Quantized NextN drafts (prevents silent unquantized build) |
-| `04-v16-essential.patch` | SupportsPP + stale topk (flashinfer_sm120) + embed_tokens loading |
-| `06-b12x-stale-topk-buffer.patch` | **Critical:** B12X_MLA_SPARSE stale `topk_indices_buffer` fix (Fix #4 from PR #46994 applied to b12x_mla_sparse.py) |
-| `05-pp-mtp-broadcast-and-draft-relay.patch` | PR #46994 Fix #2 (broadcast padding) + Fix #3 (draft relay) — **PP2 only** |
-| `07-draft-pp-size-fix.patch` | Draft `pipeline_parallel_size=1` — **PP2 only** |
+| Component | Version | Why |
+|-----------|---------|-----|
+| vLLM fork | `local-inference-lab/vllm` @ `5dffea8` (branch `codex/fathomless-firmament-v16-unified-20260712`) | DSpark support, SM120 PCIe serving, GLM-5.2 MTP kernels, MRv2 model runner, B12X MoE integration |
+| b12x | `lukealonso/b12x` @ `97b3d64` (master) | W4A8 MoE, unified SM120 sparse MLA, PCIe DCP collectives, decode optimization (24 t/s vs 9 t/s on old branch) |
+| CUDA | 13.2.0 | GB10 / sm_121 support |
+| PyTorch | 2.11.0 | Pinned by v16 branch |
+| FlashInfer | Prebuilt sm_121 wheels | Sparse MLA attention kernels |
+| NCCL | 2.30.4 (custom aarch64) | 3-node mesh ring support |
+| transformers | ≥5.0 (`--tf5` build flag) | Required for GLM-5.2 model definitions |
 
-**Production image (TP8+PP1) uses patches 01, 03, 04, 06 only.**  
-PP2 patches (05, 07) are included in the repo for experimentation but not needed for TP8+PP1.
+### Patches (patches/v16-final/)
+
+| Patch | Purpose | Production? |
+|-------|---------|:-----------:|
+| `01-pr72-1-draft-dcp-config-propagation.patch` | DCP config → draft model (prevents MTP collapse under DCP>1). From CosmicRaisins' PR #72. | ✅ |
+| `03-draft-quant-packed-mapping.patch` | Quantized NextN draft token mapping (without this, quantized drafts silently build unquantized and MTP acceptance collapses). From CosmicRaisins. | ✅ |
+| `04-v16-essential.patch` | Three fixes: (1) DeepSeekMTP `SupportsPP` interface, (2) stale `topk_indices_buffer` in flashinfer_sm120 sparse MLA (from PR #46994), (3) MTP `embed_tokens` loading under PP. | ✅ |
+| `06-b12x-stale-topk-buffer.patch` | Same stale `topk_indices_buffer` fix applied to `b12x_mla_sparse.py` (Fix #4 from PR #46994). Without this, `_maybe_share_lm_head` replaces the indexer's buffer but the backend holds a stale reference → garbage DSA attention and ~30% acceptance instead of ~85%. | ✅ |
+| `05-pp-mtp-broadcast-and-draft-relay.patch` | PR #46994 Fix #2 (broadcast padding to `max_sample_len`) + Fix #3 (draft token relay to non-last PP ranks). | PP2 only |
+| `07-draft-pp-size-fix.patch` | Sets draft `pipeline_parallel_size=1` instead of copying target's. | PP2 only |
+
+**Production image (TP8+PP1) uses patches 01, 03, 04, 06 only.**
+
+### Runtime mod (mods/fix-fsm-toolcall/)
+
+| Mod | Purpose |
+|-----|---------|
+| `fix-fsm-toolcall` (PR #44993) | Fixes `"Failed to advance FSM"` errors during tool calling + MTP. The v16 fork already includes PR #44297 (`trim_reasoning_for_advance`) and #46149 (`reasoning=reasoning_enabled` in structural tags), but `should_advance()` still uses `num_computed_tokens - num_output_placeholders` to derive the delta window — which breaks under MTP rejection (placeholder count stays >0, window starts past the reasoning-end marker, grammar never enforced → HTTP 500). This mod passes `new_token_ids` directly to `should_advance()`, bypassing the broken placeholder math, and extends same-step advance to all backend types. |
 
 ## Recipe Files
 
@@ -75,15 +82,29 @@ Both recipes reference the same image tag: `vllm-node-tf5-glm52-v16:latest`
 
 ## Performance (llama-benchy, coherent corpus, tg=1500)
 
-| Depth | Prefill (t/s) | Decode (t/s) |
-|-------|--------------|--------------|
-| 0 | 1,211 | 35 |
-| 4k | 1,118 | 33 |
-| 16k | 1,210 | 42 |
-| 100k | 1,123 | 29 |
-| 200k | 1,019 | 38 |
+| Depth | Prefill (t/s) | Peak decode (t/s) | TTFR (ms) |
+|-------|--------------:|------------------:|----------:|
+| 0 | 1,211 ± 0.9 | 53.5 ± 3.5 | 1,693 |
+| 4k | 1,117 ± 100.7 | 58.0 ± 0.0 | 5,461 |
+| 16k | 1,215 ± 23.8 | 58.0 ± 0.0 | 14,867 |
+| 32k | 1,176 ± 4.7 | 54.5 ± 2.5 | 28,963 |
+| 100k | 1,128 ± 0.9 | 51.5 ± 1.5 | 90,448 |
+| 200k | 1,019 ± 0.0 | 50.0 ± 0.0 | 198,327 |
 
-**Game bench (Snake, 1500 tokens):** 54 tok/s sustained
+**Game bench (Snake, 1500 tokens, temp=0, thinking=disabled):** 54.2 tok/s sustained
+
+**Coding context** (vs coherent corpus above): avg gen 40–50 t/s single-stream, 60–70 t/s with 2 concurrent requests.
+
+### Tool evaluation (tool-eval-bench v2.0.0)
+
+| Metric | Score |
+|--------|------:|
+| **Overall quality** | 91 / 100 (★★★★★ Excellent) |
+| Responsiveness | 43 / 100 (median turn: 3.6s) |
+| Deployability | 77 / 100 (α=0.7) |
+| Pass rate | 59 passed, 8 partial, 2 failed (126/138 pts) |
+| Token efficiency | 0.6 pts/1K tokens (210K tokens total) |
+| Weakest category | Toolset Scale (62%) |
 
 ## License
 
