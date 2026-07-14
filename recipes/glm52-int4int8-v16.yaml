@@ -74,7 +74,7 @@ env:
   VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS: "0"
   PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
   NCCL_NVLS_ENABLE: "0"
-  NCCL_BUFFSIZE: "8388608"
+  NCCL_BUFFSIZE: "16777216"
 
   TORCH_EXTENSIONS_DIR: /cache/huggingface/torch_extensions
   TORCHINDUCTOR_CACHE_DIR: /cache/huggingface/torchinductor-cache
@@ -82,8 +82,12 @@ env:
   XDG_CACHE_HOME: /cache/huggingface
 
   CUTE_DSL_ARCH: "sm_121a"
-  NCCL_MAX_NCHANNELS: "8"
-  NCCL_MIN_NCHANNELS: "8"
+  NCCL_MAX_NCHANNELS: "4"
+  NCCL_MIN_NCHANNELS: "4"
+
+# Runtime mods applied inside container before vllm serve
+mods:
+  - mods/fix-fsm-toolcall
 
 command: |
   vllm serve /root/models/models14/GLM-5.2-Int4-Int8 \
