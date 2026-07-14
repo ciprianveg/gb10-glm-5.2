@@ -151,8 +151,8 @@ This work stands on the shoulders of:
 | Contribution | Source |
 |--------------|--------|
 | **Foundational GLM-5.2-on-GB10 stack** — DCP patches (PR #72), `index_topk_pattern` override, B12X config, `draft-quant-packed-mapping` fix, eugr/spark-vllm-docker build system | [CosmicRaisins/glm-5.2-gb10](https://github.com/CosmicRaisins/glm-5.2-gb10) |
-| **vLLM v16 branch** (DSpark, SM120 PCIe serving, GLM MTP fixes, B12X MoE kernels, MRv2 default) | `local-inference-lab/vllm` @ `codex/fathomless-firmament-v16-unified-20260712` |
-| **b12x** (W4A8 MoE, unified SM120 sparse MLA, PCIe DCP collectives, 80eb49b decode optimization) | `lukealonso/b12x` @ `97b3d64` |
+| **vLLM v16 branch** (DSpark, SM120 PCIe serving, GLM MTP fixes, B12X MoE kernels, MRv2 default) | [local-inference-lab/vllm](https://github.com/local-inference-lab/vllm) @ `codex/fathomless-firmament-v16-unified-20260712` |
+| **b12x** (W4A8 MoE, unified SM120 sparse MLA, PCIe DCP collectives, 80eb49b decode optimization) | [lukealonso/b12x](https://github.com/lukealonso/b12x) @ `97b3d64` |
 | **PR #72** (DCP draft config propagation, `topk_scores_buffer` for B12X, `build_for_drafting`) | m9e / voipmonitor |
 | **PR #46994** (V2+MTP+PP: SupportsPP, broadcast padding, draft relay, embed_tokens, stale topk fix) | eastwood-c / vllm-project |
 | **FlashInfer SM120 kernels** | FlashInfer team |
