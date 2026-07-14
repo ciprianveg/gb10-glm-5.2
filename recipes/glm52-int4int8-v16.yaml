@@ -1,17 +1,11 @@
-# GLM-5.2 Int4-Int8Mix (TP=8 + PP=1 on 8× GB10 / DGX Spark, unpruned QuantTrio)
+# GLM-5.2 Int4-Int8Mix (TP=8 + PP=1 on 8× GB10 / DGX Spark, QuantTrio)
 #
 # v16 stack: local-inference-lab/vllm @fathomless-firmament-v16-unified + b12x master
 # TP=8 across 8 nodes, DCP=1, PP=1
 # MTP k=4 with B12X_MLA_SPARSE attention
 #
 # Container: vllm-node-tf5-glm52-v16:latest
-# Model:     QuantTrio/GLM-5.2-Int4-Int8Mix (378GB, 124 safetensor shards)
-#
-# Performance vs old vllm-node-tf5-glm52-dcp:
-#   Prefill:  +12% (1080 → 1211 t/s @ d0)
-#   Decode:   +14% (30.6 → 34.9 t/s @ d0)
-#   Game:     +17% (46.4 → 54.2 tok/s)
-#   Depth scaling: flat to 200k context
+# Model:     QuantTrio/GLM-5.2-Int4-Int8Mix
 #
 # Patches in this image (patches/v16-final/):
 #   01-pr72-1-draft-dcp-config-propagation.patch  (DCP config propagation)
@@ -21,7 +15,7 @@
 
 recipe_version: "1"
 name: GLM-5.2-Int4-Int8-TP8
-description: GLM-5.2 Int4-Int8Mix (unpruned QuantTrio) on 8× GB10, TP=8 + PP=1, MTP k=4
+description: GLM-5.2 Int4-Int8Mix (QuantTrio) on 8× GB10, TP=8 + PP=1, MTP k=4
 raw_entrypoint: true
 shared_weights_nfs: true
 cluster_only: true
@@ -106,10 +100,10 @@ command: |
     --dcp-kv-cache-interleave-size 1 \
     --attention-backend B12X_MLA_SPARSE \
     --hf-overrides '{{"index_topk_pattern":"FFFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSS"}}' \
-    --max-model-len 405000 \
+    --max-model-len 500000 \
     --max-num-seqs 5 \
     --max-num-batched-tokens 4096 \
-    --gpu-memory-utilization 0.615 \
+    --gpu-memory-utilization 0.75 \
     --kv-cache-dtype fp8_ds_mla \
     --distributed-executor-backend ray \
     --compilation-config '{{"cudagraph_mode":"FULL","max_cudagraph_capture_size":16}}' \
