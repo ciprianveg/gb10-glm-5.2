@@ -58,7 +58,7 @@ Starting from CosmicRaisins' DCP1 solution (TP8+PP1, MTP k=4, B12X_MLA_SPARSE), 
 
 **Production image (TP8+PP1) uses patches 01, 03, 04, 06 only.**
 
-### Runtime mod (mods/fix-fsm-toolcall/)
+### Runtime mods
 
 **`fix-fsm-toolcall`** (PR #44993) — Fixes `"Failed to advance FSM"` errors during
 tool calling + MTP. The v16 fork already includes PR #44297 (`trim_reasoning_for_advance`)
@@ -68,6 +68,14 @@ which breaks under MTP rejection (placeholder count stays >0, window starts past
 reasoning-end marker, grammar never enforced → HTTP 500). This mod passes `new_token_ids`
 directly to `should_advance()`, bypassing the broken placeholder math, and extends
 same-step advance to all backend types.
+
+**`decode-aware-scheduler`** (penguinchang, NVIDIA Developer Forums 2026-07-15) —
+Prevents long-prefill requests from starving decode streams under concurrent load.
+When decode is active, prefill is limited to a shared token budget (256 tokens/step
+in production); when idle, prefill gets the full batched token budget. At most 1
+long-prefill per step with round-robin rotation. Reduces decode stalls from
+multi-second blocks to ~0.5s. See [mods/decode-aware-scheduler/README.md](mods/decode-aware-scheduler/README.md)
+for tuning guide.
 
 ## Recipe Files
 
@@ -155,6 +163,7 @@ This work stands on the shoulders of:
 | **b12x** (W4A8 MoE, unified SM120 sparse MLA, PCIe DCP collectives, 80eb49b decode optimization) | [lukealonso/b12x](https://github.com/lukealonso/b12x) @ `97b3d64` |
 | **PR #72** (DCP draft config propagation, `topk_scores_buffer` for B12X, `build_for_drafting`) | m9e / voipmonitor |
 | **PR #46994** (V2+MTP+PP: SupportsPP, broadcast padding, draft relay, embed_tokens, stale topk fix) | eastwood-c / vllm-project |
+| **Decode-Aware Custom Scheduler** (dynamic prefill budgets, round-robin long-prefill selection) | [penguinchang](https://forums.developer.nvidia.com/u/penguinchang) / [NVIDIA Developer Forums](https://forums.developer.nvidia.com/t/376831) |
 | **FlashInfer SM120 kernels** | FlashInfer team |
 | **DeepGEMM SM120 support** | DeepSeek AI |
 | **QuantTrio GLM-5.2-Int4-Int8Mix** (256-expert, in-checkpoint MTP) | QuantTrio / cyankiwi |

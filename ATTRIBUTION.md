@@ -47,6 +47,12 @@ Our patches `01`, `03`, `04`, `06` backport the above fixes to the v16 branch.
 | `05-pp-mtp-broadcast-and-draft-relay.patch` | PR #46994 Fix #2 + #3 | PPHandler broadcast padding + draft token relay (PP2 only) |
 | `07-draft-pp-size-fix.patch` | New (same class as PR #72) | `create_draft_parallel_config()` sets `pipeline_parallel_size=1` for draft (PP2 only) |
 
+## Community Contributions
+
+| Contribution | Author | Source | What It Does |
+|-------------|--------|--------|--------------|
+| **Decode-Aware Custom Scheduler** | [penguinchang](https://forums.developer.nvidia.com/u/penguinchang) | [NVIDIA Developer Forums](https://forums.developer.nvidia.com/t/glm-5-2-int4-int8-on-8x-gb10-1-200-t-s-prefill-33-54-t-s-avg-decode-generic-coding-structured/376831) (2026-07-15) | Scheduler patch that prevents long-prefill requests from starving decode streams. Adds dynamic prefill budgets (`--decode-prefill-token-budget`, `--idle-prefill-token-budget`), round-robin long-prefill selection, and runtime enable/disable. See `mods/decode-aware-scheduler/README.md`. |
+
 ## Model Provenance
 
 ```
