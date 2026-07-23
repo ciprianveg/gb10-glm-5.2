@@ -5,10 +5,26 @@ running GLM-5.2-Int4-Int8 with MTP k=4 speculative decoding.
 
 ## Results
 
+### v18 vs v16 (MTP k=4, TP8/DCP1)
+
 | Metric | v16 (fathomless-firmament) | v18 (gilded-gnosis) | Delta |
 |---|---|---|---|
 | Prefill | ~1200 t/s | ~1300 t/s | **+8%** |
 | Decode | baseline | same (after warmup) | — |
+
+### v18 Detailed Benchmarks (llama-benchy, coherent corpus, TP8/DCP1, MTP k=4)
+
+| Test | t/s | Peak t/s | TTFR (ms) | Est PPT (ms) | E2E TTFT (ms) |
+|---|---:|---:|---:|---:|---:|
+| pp2048 | 1329.72 | — | 1542.44 | 1540.17 | 1542.44 |
+| tg1500 | 35.21 | 57.00 | — | — | — |
+| pp2048 @ d16000 | 1319.37 | — | 13681.53 | 13679.26 | 13683.24 |
+| tg1500 @ d16000 | 41.80 | 66.00 | — | — | — |
+| pp2048 @ d100000 | 1202.08 | — | 84895.04 | 84892.77 | 84901.05 |
+| tg1500 @ d100000 | 34.99 | 45.00 | — | — | — |
+
+Context depth (d) = prompt tokens already in KV cache before the test.
+Peak t/s = best single-step throughput. TTFR = time to first response token.
 
 ## ⚠ Warmup & Cache Requirements
 
@@ -49,7 +65,7 @@ Based on [glm5.2_v18.md](https://github.com/local-inference-lab/rtx6kpro/blob/ma
 
 | Component | Ref / Commit |
 |---|---|
-| vLLM | `local-inference-lab/vllm` @ `264bce1d` (branch `build/gilded-gnosis-v18-final-20260718`) |
+| vLLM | [`local-inference-lab/vllm` branch `build/gilded-gnosis-v18-final-20260718`](https://github.com/local-inference-lab/vllm/tree/build/gilded-gnosis-v18-final-20260718) @ `264bce1d` |
 | B12X | `voipmonitor/b12x` @ `bc85ef3` (branch `codex/nf3-grid188-decode-20260717`) |
 | FlashInfer | `voipmonitor/flashinfer` @ `801d57a` |
 | DeepGEMM | `a6b593d` |
