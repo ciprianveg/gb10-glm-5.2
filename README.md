@@ -152,16 +152,6 @@ Seven runtime mods are applied by the v18 recipe at container startup. Each live
 
 ---
 
-## Forum & Social Media
-
-**NVIDIA Developer Forums headline:**
-> "GLM-5.2 Int4-Int8 on 8× DGX Spark — rebuilt on v18 Gilded Gnosis stack: 1,329 t/s prefill (+8% vs v16), 66 t/s peak decode. New upstream: DeepGEMM, InstantTensor, NVFP4 KV cache, DCP fast-path, NF3 Grid188. Full build docs + recipe at [github.com/ciprianveg/gb10-glm-5.2](https://github.com/ciprianveg/gb10-glm-5.2)"
-
-**X / Twitter:**
-> "🚀 GLM-5.2 on 8× GB10 hits 1,329 t/s prefill (+8%) and 66 t/s peak decode with the v18 Gilded Gnosis rebuild. DeepGEMM + PyTorch 2.12 + NVFP4 KV cache on a cluster of DGX Sparks. Full recipe: github.com/ciprianveg/gb10-glm-5.2"
-
----
-
 ## Requirements
 
 - 8× DGX Spark GB10 (SM121, aarch64)
