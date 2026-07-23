@@ -1,39 +1,52 @@
-# GLM-5.2 Int4-Int8Mix with DSpark speculative decoding (experimental)
+# GLM-5.2 Int4-Int8Mix (TP=8 + PP=1 on 8× GB10 / DGX Spark, QuantTrio)
 #
-# Uses the b1rd/GLM-5.2-speculator.dspark-quanttrio-int4-ft draft model,
-# finetuned specifically for QuantTrio Int4-Int8Mix target.
+# v16 stack: local-inference-lab/vllm @fathomless-firmament-v16-unified + b12x master
+# TP=8 across 8 nodes, DCP=1, PP=1
+# MTP k=4 with B12X_MLA_SPARSE attention
 #
-# WARNING: v18 image does NOT have VLLM_DSPARK_DRAFT_RING support.
-# The speculator README says ring-buffer windowed drafting is "required"
-# to avoid acceptance depth-collapse. Without it, acceptance will be
-# lower (~1.4 vs ~2.1 tokens/step). Still worth testing.
+# Container: vllm-node-tf5-glm52-v16:latest
+# Model:     QuantTrio/GLM-5.2-Int4-Int8Mix
 #
-# Container: vllm-node-tf5-glm52-v18:latest
-# Target:   QuantTrio/GLM-5.2-Int4-Int8Mix (378GB, 124 safetensor shards)
-# Draft:    b1rd/GLM-5.2-speculator.dspark-quanttrio-int4-ft/ft32k (reduced vocab)
+# Patches in this image (patches/v16-final/):
+#   01-pr72-1-draft-dcp-config-propagation.patch  (DCP config propagation)
+#   03-draft-quant-packed-mapping.patch            (quantized NextN drafts)
+#   04-v16-essential.patch                         (SupportsPP + stale topk + embed_tokens)
+#   06-b12x-stale-topk-buffer.patch                (B12X_MLA_SPARSE stale topk_indices_buffer fix)
 
 recipe_version: "1"
-name: GLM-5.2-Int4-Int8-DSpark
-description: GLM-5.2 Int4-Int8Mix with DSpark speculator (experimental, no ring buffer)
+name: GLM-5.2-Int4-Int8-TP8
+description: GLM-5.2 Int4-Int8Mix (QuantTrio) on 8× GB10, TP=8 + PP=1, MTP k=4
 raw_entrypoint: true
 shared_weights_nfs: true
 cluster_only: true
 
-container: vllm-node-tf5-glm52-v18:latest
+# v16 stack image
+container: vllm-node-tf5-glm52-v16:latest
+
+# Model weights — NFS-mounted at /root/models/models14 inside container
 model: /root/models/models14/GLM-5.2-Int4-Int8
 
+
+# Environment — v16 stack
 env:
   VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS: "1800"
-  LD_PRELOAD: /opt/libnccl-local-inference.so.2.30.4
+  LD_PRELOAD: /opt/nccl-2.30.4/lib/libnccl.so.2
+  LD_LIBRARY_PATH: /opt/nccl-2.30.4/lib
   HF_HOME: /cache/huggingface
   HF_HUB_OFFLINE: "1"
   TRANSFORMERS_OFFLINE: "1"
   VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
   VLLM_SPARSE_INDEXER_MAX_LOGITS_MB: "256"
 
+  # V2 runner + B12X sparse indexer (required for B12X_MLA_SPARSE)
   VLLM_USE_V2_MODEL_RUNNER: "1"
   VLLM_USE_B12X_SPARSE_INDEXER: "1"
   GLM52_BIND_HOST_TRITON: "0"
+  VLLM_B12X_MLA_SPEC_EXTEND_AS_DECODE: "1"
+
+  # DCP env vars (no-ops at DCP=1)
+  VLLM_DCP_GLOBAL_TOPK: "1"
+  VLLM_DCP_SHARD_DRAFT: "1"
 
   TORCH_CUDA_ARCH_LIST: "12.1a"
   NCCL_NET: IB
@@ -50,6 +63,7 @@ env:
   VLLM_USE_RAY_COMPILED_DAG_OVERLAP_COMM: "1"
   RAY_CGRAPH_get_timeout: "1800"
 
+  # Stability + KV cache gains
   RAY_memory_monitor_refresh_ms: "0"
   VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS: "0"
   PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
@@ -65,14 +79,9 @@ env:
   NCCL_MAX_NCHANNELS: "4"
   NCCL_MIN_NCHANNELS: "4"
 
+# Runtime mods applied inside container before vllm serve
 mods:
-  - mods/fix-v18-venv-paths
-  - mods/fix-mtp-quant-packed-mapping
-  - mods/fix-dsa-block-table-dim
-  - mods/fix-fsm-toolcall-v18
-  - mods/fix-b12x-cute-cache-key
-  - mods/decode-aware-scheduler
-  - mods/fix-v16-b12x-stale-topk
+  - mods/fix-fsm-toolcall
 
 command: |
   vllm serve /root/models/models14/GLM-5.2-Int4-Int8 \
@@ -85,26 +94,19 @@ command: |
     --enable-chunked-prefill \
     --enable-prefix-caching \
     --async-scheduling \
-    --enable-flashinfer-autotune \
-    -cc.pass_config.fuse_allreduce_rms=True \
     --tensor-parallel-size 8 \
     --pipeline-parallel-size 1 \
     --decode-context-parallel-size 1 \
     --dcp-kv-cache-interleave-size 1 \
     --attention-backend B12X_MLA_SPARSE \
     --hf-overrides '{{"index_topk_pattern":"FFFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSSFSSS"}}' \
-    --max-model-len auto \
+    --max-model-len 500000 \
     --max-num-seqs 5 \
     --max-num-batched-tokens 4096 \
-    --long-prefill-token-threshold 2048 \
-    --enable-decode-aware-prefill \
-    --decode-prefill-token-budget 256 \
-    --idle-prefill-token-budget 16384 \
-    --max-long-prefills-per-step 1 \
-    --gpu-memory-utilization 0.726 \
+    --gpu-memory-utilization 0.75 \
     --kv-cache-dtype fp8_ds_mla \
     --distributed-executor-backend ray \
     --compilation-config '{{"cudagraph_mode":"FULL","max_cudagraph_capture_size":16}}' \
     --default-chat-template-kwargs '{{"reasoning_effort":"high", "clear_thinking": false}}' \
-    --speculative-config '{{"method":"dspark","model":"/root/models/models11/GLM-5.2-speculator.dspark-quanttrio-int4-ft/ft32k","num_speculative_tokens":3,"attention_backend":"TRITON_ATTN","quantization":"fp8","draft_sample_method":"greedy","draft_tensor_parallel_size":1}}' \
-    --api-key 1780729424572 --seed 42
+    --speculative-config '{{"method":"mtp","quantization":"compressed-tensors","draft_attention_backend":"B12X_MLA_SPARSE","num_speculative_tokens":4,"draft_tensor_parallel_size":1}}' \
+    --seed 42

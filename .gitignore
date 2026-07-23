@@ -1,0 +1,42 @@
+# Build artifacts
+*.log
+*.whl
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Environment
+.env
+.env.local
+
+# Weights (large, not tracked)
+/models/
+/weights/
+*.safetensors
+*.bin
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Patches (copied from eugr/spark-vllm-docker at build time)
+# patches/v16-final/ is tracked
+# DSpark recipes (local only, not pushed)
+recipes/glm52-int4int8-dspark.yaml
+recipes/glm52-int4int8-dspark-ring.yaml
