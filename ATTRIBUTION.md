@@ -16,6 +16,8 @@ Full credit to **CosmicRaisins** for the foundational GLM-5.2-on-GB10 serving st
 
 ## Upstream Sources
 
+### v16 Stack
+
 | Project | Repo | Commit/Branch | License | Used For |
 |---------|------|---------------|---------|----------|
 | **vLLM** | `local-inference-lab/vllm` | `codex/fathomless-firmament-v16-unified-20260712` @ `5dffea8` | Apache-2.0 | Core inference engine, V2 runner, MTP, DCP, B12X integration |
@@ -23,27 +25,51 @@ Full credit to **CosmicRaisins** for the foundational GLM-5.2-on-GB10 serving st
 | **FlashInfer** | `flashinfer-ai/flashinfer` | Prebuilt wheels (sm_121) | Apache-2.0 | Sparse MLA attention kernels, page attention |
 | **DeepGEMM** | `deepseek-ai/DeepGEMM` | `nv_dev` branch | Apache-2.0 | SM120 GEMM kernels for MoE |
 | **NCCL** | `zyang-dev/nccl` | `dgxspark-3node-ring` | BSD-3-Clause | 3-node ring collectives over RoCE |
-| **QuantTrio GLM-5.2-Int4-Int8Mix** | `QuantTrio/GLM-5.2-Int4-Int8Mix` | Latest | MIT | Model weights (256-expert, in-checkpoint MTP) |
-| **eugr/spark-vllm-docker** | `eugr/spark-vllm-docker` | Latest | Apache-2.0 | Multi-stage Docker build, wheel caching, SCP deploy, recipe runner |
-| **CosmicRaisins/glm-5.2-gb10** | `CosmicRaisins/glm-5.2-gb10` | Latest | Apache-2.0 | Foundational GLM-5.2-on-GB10 stack: DCP patches, `index_topk_pattern` override, B12X config, `draft-quant-packed-mapping` fix |
+
+### v18 Stack Additions (Gilded Gnosis)
+
+| Project | Repo | Commit | License | Used For |
+|---------|------|--------|---------|----------|
+| **vLLM v18** | `local-inference-lab/vllm` | `build/gilded-gnosis-v18-final-20260718` @ `264bce1d` | Apache-2.0 | v18 inference engine with DCP fast-path, NVFP4 MLA, NF3 Grid188, MTP target-revision |
+| **B12X v18** | `voipmonitor/b12x` | `codex/nf3-grid188-decode-20260717` @ `bc85ef3` | Apache-2.0 | v18 B12X with Grid188, deterministc CuTe cache keys |
+| **FlashInfer v18** | `voipmonitor/flashinfer` | `801d57a` | Apache-2.0 | Updated FlashInfer for v18 stack |
+| **DeepGEMM** | `deepseek-ai/DeepGEMM` | `a6b593d` | Apache-2.0 | SM120 GEMM kernels for MoE (new in v18) |
+| **InstantTensor** | `local-inference-lab/instant-tensor` | `85e7c5f` | Apache-2.0 | Fast model loader (new in v18; not used on GB10/NFS — falls back to safetensors) |
+| **NCCL v18** | `local-inference-lab/nccl-canonical` | 2.30.4 | BSD-3-Clause | NCCL fork for v18 stack |
+
+### Shared Components (both v16 and v18)
+
+| Project | Used For |
+|---------|----------|
+| **QuantTrio GLM-5.2-Int4-Int8Mix** (MIT) | Model weights (256-expert, in-checkpoint MTP) |
+| **eugr/spark-vllm-docker** (Apache-2.0) | Multi-stage Docker build, wheel caching, SCP deploy, recipe runner |
+| **CosmicRaisins/glm-5.2-gb10** (Apache-2.0) | Foundational GLM-5.2-on-GB10 stack |
 
 ## Key Upstream PRs Incorporated
 
-| PR | Author | Repo | Status | What It Fixes |
-|----|--------|------|--------|---------------|
-| **#72** | m9e | `local-inference-lab/vllm` | Merged (part) | DCP draft config propagation, `topk_scores_buffer` for B12X, `build_for_drafting` |
-| **#46994** | eastwood-c | `vllm-project/vllm` | Open | V2+MTP+PP: SupportsPP, broadcast padding (Fix #2), draft relay (Fix #3), embed_tokens loading (6f54d3c), stale topk_indices_buffer (Fix #4) |
+| PR | Author | Repo | Scope | What It Fixes |
+|----|--------|------|-------|---------------|
+| **#72** | m9e | `local-inference-lab/vllm` | v16 | DCP draft config propagation, `topk_scores_buffer` for B12X, `build_for_drafting` |
+| **#46994** | eastwood-c | `vllm-project/vllm` | v16 | V2+MTP+PP: SupportsPP, broadcast padding, draft relay, embed_tokens, stale topk buffer |
+| **#109** | voipmonitor | `local-inference-lab/vllm` | v18 | DSpark hardening |
+| **#111** | voipmonitor | `local-inference-lab/vllm` | v18 | TP8 full-CKV DCP prefill |
+| **#113** | voipmonitor | `local-inference-lab/vllm` | v18 | NF3 Grid188 integration |
+| **#115** | voipmonitor | `local-inference-lab/vllm` | v18 | NVFP4 MLA KV cache support |
+| **#116** | voipmonitor | `local-inference-lab/vllm` | v18 | B12X scratch-format guard |
+| **#117** | voipmonitor | `local-inference-lab/vllm` | v18 | DCP A2A CUDA graph buffer lifetime |
+| **#118** | voipmonitor | `local-inference-lab/vllm` | v18 | MTP target-revision inheritance |
+| **#47979** | vllm-project | `vllm-project/vllm` | v18 | SM120 PCIe serving stack |
+| **B12X #41** | voipmonitor | `voipmonitor/b12x` | v18 | Deterministic CuTe cache keys |
+| **#44993** | vllm-project | `vllm-project/vllm` | both | FSM `should_advance` `new_token_ids` fix |
 
-Our patches `01`, `03`, `04`, `06` backport the above fixes to the v16 branch.
-
-## Patches in This Repo (patches/v16-final/)
+### v16 Patches (patches/v16-final/)
 
 | File | Origin | Description |
 |------|--------|-------------|
 | `01-pr72-1-draft-dcp-config-propagation.patch` | PR #72 part 1 | Propagates `decode_context_parallel_size` to draft config |
 | `03-draft-quant-packed-mapping.patch` | PR #72 related | Maps quantized NextN draft tokens correctly |
-| `04-v16-essential.patch` | PR #46994 Fix #1, #4 (flashinfer), 6f54d3c | DeepSeekMTP `SupportsPP` + `make_empty_intermediate_tensors`; stale `topk_indices_buffer` in `flashinfer_mla_sparse_sm120`; MTP `embed_tokens` loading under PP |
-| `06-b12x-stale-topk-buffer.patch` | PR #46994 Fix #4 adapted | **Critical:** B12X_MLA_SPARSE stale `topk_indices_buffer` — store `self._indexer = indexer`, read dynamically in `forward_mqa` |
+| `04-v16-essential.patch` | PR #46994 Fix #1, #4 (flashinfer), 6f54d3c | DeepSeekMTP `SupportsPP` + stale `topk_indices_buffer` in `flashinfer_mla_sparse_sm120` + MTP `embed_tokens` loading under PP |
+| `06-b12x-stale-topk-buffer.patch` | PR #46994 Fix #4 adapted | **Critical:** B12X_MLA_SPARSE stale `topk_indices_buffer` |
 | `05-pp-mtp-broadcast-and-draft-relay.patch` | PR #46994 Fix #2 + #3 | PPHandler broadcast padding + draft token relay (PP2 only) |
 | `07-draft-pp-size-fix.patch` | New (same class as PR #72) | `create_draft_parallel_config()` sets `pipeline_parallel_size=1` for draft (PP2 only) |
 
@@ -51,7 +77,7 @@ Our patches `01`, `03`, `04`, `06` backport the above fixes to the v16 branch.
 
 | Contribution | Author | Source | What It Does |
 |-------------|--------|--------|--------------|
-| **Decode-Aware Custom Scheduler** | [penguinchang](https://forums.developer.nvidia.com/u/penguinchang) | [NVIDIA Developer Forums](https://forums.developer.nvidia.com/t/glm-5-2-int4-int8-on-8x-gb10-1-200-t-s-prefill-33-54-t-s-avg-decode-generic-coding-structured/376831) (2026-07-15) | Scheduler patch that prevents long-prefill requests from starving decode streams. Adds dynamic prefill budgets (`--decode-prefill-token-budget`, `--idle-prefill-token-budget`), round-robin long-prefill selection, and runtime enable/disable. See `mods/decode-aware-scheduler/README.md`. |
+| **Decode-Aware Custom Scheduler** | [penguinchang](https://forums.developer.nvidia.com/u/penguinchang) | [NVIDIA Developer Forums](https://forums.developer.nvidia.com/t/glm-5-2-int4-int8-on-8x-gb10-1-200-t-s-prefill-33-54-t-s-avg-decode-generic-coding-structured/376831) (2026-07-15) | Scheduler patch that prevents long-prefill requests from starving decode streams. Adds dynamic prefill budgets, round-robin long-prefill selection, and runtime enable/disable. |
 
 ## Model Provenance
 
@@ -62,9 +88,11 @@ GLM-5.2 (744B/40B MoE, GlmMoeDsa)
           └─ cyankiwi (quantization)
 ```
 
-## Build System
+## Build Systems
 
-The multi-stage Dockerfile, wheel caching, SCP parallel deploy, and recipe runner are from **eugr/spark-vllm-docker** (Apache-2.0). See that repo for build infrastructure credits.
+- **v16 build:** `eugr/spark-vllm-docker` (multi-stage Dockerfile, wheel caching, SCP parallel deploy, recipe runner)
+- **v18 build:** `local-inference-lab/blackwell-llm-docker` (adapted for aarch64/SM121)
+- **Deploy (both):** `eugr/spark-vllm-docker` recipe runner
 
 ## License
 
