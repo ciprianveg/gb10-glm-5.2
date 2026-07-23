@@ -109,4 +109,4 @@ command: |
     --compilation-config '{{"cudagraph_mode":"FULL","max_cudagraph_capture_size":16}}' \
     --default-chat-template-kwargs '{{"reasoning_effort":"high", "clear_thinking": false}}' \
     --speculative-config '{{"method":"mtp","quantization":"compressed-tensors","draft_attention_backend":"B12X_MLA_SPARSE","num_speculative_tokens":4,"draft_tensor_parallel_size":1}}' \
-    --api-key 1780729424572 --seed 42
+    --seed 42

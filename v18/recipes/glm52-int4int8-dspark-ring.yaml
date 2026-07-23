@@ -126,5 +126,5 @@ command: |
     --compilation-config '{{"cudagraph_mode":"FULL","max_cudagraph_capture_size":16,"pass_config":{{"fuse_allreduce_rms":true,"fuse_gemm_comms":true}}}}' \
     --default-chat-template-kwargs '{{"reasoning_effort":"high", "clear_thinking": false}}' \
     --speculative-config '{{"method":"dspark","model":"/root/models/models11/GLM-5.2-speculator.dspark-quanttrio-int4-ft/ft32k","num_speculative_tokens":3,"attention_backend":"TRITON_ATTN","quantization":"fp8","draft_sample_method":"greedy","draft_tensor_parallel_size":1}}' \
-    --api-key 1780729424572 --seed 42
+    --seed 42
 
