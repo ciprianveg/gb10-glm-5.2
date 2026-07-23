@@ -35,8 +35,5 @@ tmp/
 temp/
 *.tmp
 
-# Patches (copied from eugr/spark-vllm-docker at build time)
-# patches/v16-final/ is tracked
-# DSpark recipes (local only, not pushed)
-recipes/glm52-int4int8-dspark.yaml
-recipes/glm52-int4int8-dspark-ring.yaml
+# Patches tracked in v16/patches/
+# DSpark recipes tracked in v18/recipes/

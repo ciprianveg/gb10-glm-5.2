@@ -5,7 +5,7 @@
 # which uses a multi-stage Dockerfile with wheel caching.
 #
 # To build locally (single node, no cache):
-#   docker build -t vllm-node-tf5-glm52-v16 --build-arg VLLM_REF=codex/fathomless-firmament-v16-unified-20260712 --build-arg VLLM_REPO=https://github.com/local-inference-lab/vllm.git --build-arg VLLM_LOCAL_PATCHES_DIR=patches/v16-final --build-arg CACHEBUST_VLLM=$(date +%s) -f Dockerfile.vllm .
+#   docker build -t vllm-node-tf5-glm52-v16 --build-arg VLLM_REF=codex/fathomless-firmament-v16-unified-20260712 --build-arg VLLM_REPO=https://github.com/local-inference-lab/vllm.git --build-arg VLLM_LOCAL_PATCHES_DIR=v16/patches --build-arg CACHEBUST_VLLM=$(date +%s) -f Dockerfile.vllm .
 #
 # For production (multi-node, cached wheels, SCP deploy):
 #   cd eugr/spark-vllm-docker
@@ -52,7 +52,7 @@ FROM base AS vllm-builder
 
 ARG VLLM_REPO=https://github.com/local-inference-lab/vllm.git
 ARG VLLM_REF=codex/fathomless-firmament-v16-unified-20260712
-ARG VLLM_LOCAL_PATCHES_DIR=patches/v16-final
+ARG VLLM_LOCAL_PATCHES_DIR=v16/patches
 ARG VLLM_APPLY_PRESET_PRS=0
 ARG TORCH_CUDA_ARCH_LIST=12.1a
 ARG FLASHINFER_CUDA_ARCH_LIST=12.1a

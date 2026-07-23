@@ -13,7 +13,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EUROOT="${SCRIPT_DIR}/../spark-vllm-docker"
-PATCHES_DIR="${SCRIPT_DIR}/patches/v16-final"
+PATCHES_DIR="${SCRIPT_DIR}/patches"
 
 TAG="${TAG:-vllm-node-tf5-glm52-v16}"
 VLLM_REPO="${VLLM_REPO:-https://github.com/local-inference-lab/vllm.git}"
@@ -39,7 +39,7 @@ if [[ ! -d "$EUROOT" ]]; then
 fi
 
 if [[ ! -d "$PATCHES_DIR" ]]; then
-    echo "ERROR: patches/v16-final not found at $PATCHES_DIR"
+    echo "ERROR: patches/ not found at $PATCHES_DIR"
     exit 1
 fi
 

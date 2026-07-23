@@ -131,20 +131,21 @@ Seven runtime mods are applied by the v18 recipe at container startup. Each live
 ## Directory Structure
 
 ```
-├── Dockerfile                 v16 reference (backward compat)
-├── build.sh                   v16 build script (backward compat)
-├── patches/v16-final/         v16 patches (backward compat)
-├── mods/                      v16 + shared mods
-│   ├── decode-aware-scheduler/
-│   ├── fix-fsm-toolcall/
-│   └── fix-v16-b12x-stale-topk/
-├── recipes/                   v16 recipes
-│   ├── glm52-int4int8-v16.yaml
-│   └── glm52-int4int8-v16-pp2.yaml
-├── v18/                       ← self-contained v18 build
+├── v16/                       v16 build (fathomless-firmament, fallback)
+│   ├── Dockerfile             reference build
+│   ├── build.sh               build script
+│   ├── patches/               v16-final patches (6 files)
+│   ├── mods/                  v16 + shared mods
+│   │   ├── decode-aware-scheduler/
+│   │   ├── fix-fsm-toolcall/
+│   │   └── fix-v16-b12x-stale-topk/
+│   └── recipes/               v16 recipes
+│       ├── glm52-int4int8-v16.yaml
+│       └── glm52-int4int8-v16-pp2.yaml
+├── v18/                       ← self-contained v18 build (current prod)
 │   ├── Dockerfile             adapted aarch64/SM121 reference
 │   ├── build.sh               v18 build script
-│   ├── mods/                  all 7 v18 runtime mods (see table above)
+│   ├── mods/                  all 7 v18 runtime mods
 │   └── recipes/               v18 recipes (production + DSpark variants)
 ├── README.md
 └── ATTRIBUTION.md

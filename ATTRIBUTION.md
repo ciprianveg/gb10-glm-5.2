@@ -62,7 +62,7 @@ Full credit to **CosmicRaisins** for the foundational GLM-5.2-on-GB10 serving st
 | **B12X #41** | voipmonitor | `voipmonitor/b12x` | v18 | Deterministic CuTe cache keys |
 | **#44993** | vllm-project | `vllm-project/vllm` | both | FSM `should_advance` `new_token_ids` fix |
 
-### v16 Patches (patches/v16-final/)
+### v16 Patches (v16/patches/)
 
 | File | Origin | Description |
 |------|--------|-------------|
