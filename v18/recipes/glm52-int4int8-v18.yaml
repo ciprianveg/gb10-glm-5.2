@@ -1,34 +1,4 @@
-# GLM-5.2 Int4-Int8Mix (TP=8 + PP=1 on 8× GB10 / DGX Spark, unpruned QuantTrio)
-#
-# v18 stack: local-inference-lab/vllm @gilded-gnosis-v18 (264bce1d) + b12x bc85ef3
-# Built from blackwell-llm-docker @7f3cbc6, adapted for aarch64/SM121.
-# TP=8 across 8 nodes, DCP=1 (disabled; DCP fast-path retained for future DCP>1 use).
-# MTP k=4 with B12X_MLA_SPARSE attention backend.
-#
-# Container: vllm-node-tf5-glm52-v18:latest
-# Model:     QuantTrio/GLM-5.2-Int4-Int8Mix (378GB, 124 safetensor shards)
-#
-# v18 improvements over v16:
-#   - DCP A2A CUDA graph buffer lifetime fix (PR #117)
-#   - MTP target-revision inheritance (PR #118)
-#   - B12X scratch-format guard (PR #116)
-#   - NVFP4 MLA KV cache support (PR #115)
-#   - DSpark hardening (PR #109) — included in image, not active for DCP1
-#   - DCP fast-path (PR #111) — auto-enabled for TP8/DCP4+, not DCP1
-#   - NF3 Grid188 (PR #113) — for TP4 hybrid checkpoint, not used here
-#   - B12X Grid188 PR #36 (voipmonitor/b12x fork)
-#   - InstantTensor loader built in
-#   - Unified memory awareness (DGX Spark UMA handling in mem_utils)
-#   - gc.collect() + empty_cache() after load (fix-trim-after-load built in)
-#   - embed_tokens skip for PP (built in)
-#   - fused_qkv_a_proj packed mapping for MTP (NOT built in — needs fix-mtp-quant-packed-mapping mod)
-#   - PP drafter guard via getattr (built in)
-#
-# Mods still needed (NOT in v18):
-#   fix-fsm-toolcall — PR #44993 should_advance new_token_ids (FSM tool-call fix)
-#   decode-aware-scheduler — Custom decode-aware prefill scheduler (penguinchang)
-#   fix-v16-b12x-stale-topk — Stale topk_indices_buffer fix (may be in v18, included defensively)
-#   fix-v18-venv-paths — Symlink /opt/venv -> dist-packages for mod compatibility
+# GLM-5.2 Int4-Int8Mix — TP8+PP1 on 8× GB10, v18 stack
 
 recipe_version: "1"
 name: GLM-5.2-Int4-Int8-TP8-v18
@@ -97,9 +67,6 @@ env:
   VLLM_DCP_QUERY_SPLIT: "0"
   VLLM_B12X_MLA_CKV_GATHER: "1"
 
-  # Use pre-built sm_120 FlashInfer kernels (forward-compatible with SM121)
-  # FLASHINFER_CUDA_ARCH_LIST: "12.1f"
-  # FLASHINFER_WORKSPACE_BASE: /cache/jit/flashinfer-sm121
 
 # Runtime mods applied inside container before vllm serve
 mods:
