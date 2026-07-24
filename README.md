@@ -29,7 +29,7 @@ cd ../spark-vllm-docker
 ./run-recipe.sh ../gb10-glm-5.2/v18/recipes/glm52-int4int8-v18.yaml --setup
 ```
 
-> **First boot:** CuTe DSL + Triton kernels JIT-compile for each unique batch shape. Expect latency spikes (1-2 s) during the first ~10-20 requests. After warmup, decode speed matches v16. For persistent caches, mount the directories listed in the [warmup section](#warmup--cache-requirements).
+> **First boot:** CuTe DSL + Triton kernels JIT-compile for each unique batch shape. Expect latency spikes (1-2 s) during the first ~10-20 requests. After warmup, decode speed matches and surpasses v16. For persistent caches, mount the directories listed in the [warmup section](#warmup--cache-requirements).
 
 ---
 
@@ -48,7 +48,7 @@ cd ../spark-vllm-docker
 
 - `d<N>` = prompt tokens already in KV cache before the test
 - Peak t/s = best single-step throughput
-- Prefill: **+8%** vs v16 (~1,200 → ~1,330)
+- Prefill: **+9.5%** vs v16 (~1,215 → ~1,330)
 
 ### Warmup & Cache Requirements
 
