@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends patch \
 # Copy the full mods/ tree so each run.sh can resolve its sibling files
 # (config_args.patch, apply_*.py) via $SCRIPT_DIR.
 COPY v18/mods /opt/mods
+RUN chmod +x /opt/mods/*/run.sh /opt/mods/*/apply_*.py 2>/dev/null || true
 
 # Apply mods in recipe order (see v18/recipes/*.yaml):
 #   1. fix-v18-venv-paths  — symlink /opt/venv -> dist-packages (MUST be first)

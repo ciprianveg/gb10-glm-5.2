@@ -35,5 +35,8 @@ tmp/
 temp/
 *.tmp
 
+# Personal — not for public repo
+posts-v18-announcement.txt
+
 # Patches tracked in v16/patches/
 # DSpark recipes tracked in v18/recipes/
