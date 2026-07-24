@@ -1,6 +1,6 @@
 # GLM-5.2 on DGX Spark (8× GB10) — v18 Gilded Gnosis
 
-**1,329 t/s prefill · 66 t/s peak decode · +8% prefill over v16**
+**1,329 t/s prefill · 66 t/s peak decode · +9.5% prefill over v16**
 
 Serves [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (in-checkpoint MTP, 256 experts) on an **8-node DGX Spark GB10 cluster** via TP8+PP1 with MTP k=4 speculative decoding.
 
