@@ -129,5 +129,14 @@ RUN uv pip install --system \
     --index-url https://pypi.org/simple \
     nvidia-nccl-cu12==2.30.4
 
+# OCI provenance labels (show up on the GHCR package page)
+LABEL org.opencontainers.image.source="https://github.com/ciprianveg/gb10-glm-5.2"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.title="gb10-glm-5.2 v18 (base)"
+LABEL org.opencontainers.image.description="GLM-5.2-Int4-Int8Mix on 8× DGX Spark (GB10, sm_121), TP8+PP1, MTP k=4 — compiled stack, no runtime mods"
+LABEL org.opencontainers.image.authors="ciprian"
+LABEL org.opencontainers.image.url="https://github.com/ciprianveg/gb10-glm-5.2/blob/master/ATTRIBUTION.md"
+LABEL org.opencontainers.image.version="v18"
+
 ENTRYPOINT ["vllm"]
 CMD ["serve", "--help"]

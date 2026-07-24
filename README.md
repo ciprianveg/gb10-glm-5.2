@@ -31,6 +31,25 @@ cd ../spark-vllm-docker
 
 > **First boot:** CuTe DSL + Triton kernels JIT-compile for each unique batch shape. Expect latency spikes (1-2 s) during the first ~10-20 requests. After warmup, decode speed matches and surpasses v16. For persistent caches, mount the directories listed in the [warmup section](#warmup--cache-requirements).
 
+### Prebuilt Images (GHCR)
+
+Skip the build entirely — pull a prebuilt image from GitHub Container Registry:
+
+| Tag | Contents | Use when |
+|-----|----------|----------|
+| `ghcr.io/ciprianveg/gb10-glm-5.2:v18-base` | Compiled stack + source patches, **no runtime mods** | You want to select/tune mods yourself via `v18/mods/*/run.sh` |
+| `ghcr.io/ciprianveg/gb10-glm-5.2:v18-prod` | Base + all 7 production runtime mods baked in | Zero-config deploy matching the v18 recipes |
+
+```bash
+# Zero-config production image
+docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18-prod
+
+# Or the mod-free base (apply mods yourself at deploy)
+docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18-base
+```
+
+The base image is the canonical artifact; `v18-prod` is a convenience layer with the [production mod set](v18/recipes/) pre-applied. Both are single-arch `linux/arm64` built for GB10 / sm_121 — they will not run on x86_64 or non-Blackwell GPUs. See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credits.
+
 ---
 
 ## v18 Benchmarks (llama-benchy, coherent corpus, TP8/DCP1, MTP k=4)
