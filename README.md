@@ -1,13 +1,13 @@
-# GLM-5.2 on DGX Spark (8× GB10) — v18 Gilded Gnosis
+# GLM-5.2 on DGX Spark (8× GB10) — v18-vision (Gilded Gnosis + Vision + Adaptive MTP)
 
-**1,329 t/s prefill · 66 t/s peak decode · +9.5% prefill over v16**
+**Vision (MoonViT-3d + PatchMerger) · Adaptive MTP 2/4 · 1,329 t/s prefill · 66 t/s peak decode**
 
-Serves [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (in-checkpoint MTP, 256 experts) on an **8-node DGX Spark GB10 cluster** via TP8+PP1 with MTP k=4 speculative decoding.
+Serves [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (in-checkpoint MTP, 256 experts) on an **8-node DGX Spark GB10 cluster** via TP8+PP1 with adaptive MTP speculative decoding, plus image understanding via [baseten/GLM-5.2-Vision-NVFP4](https://huggingface.co/baseten/GLM-5.2-Vision-NVFP4) (MoonViT-3d vision tower + PatchMerger projector). Vision and adaptive MTP overlay by [CosmicRaisins/glm-5.2-gb10](https://github.com/CosmicRaisins/glm-5.2-gb10).
 
 | Version | Stack | Status |
 |---------|-------|--------|
-| **v18** | `gilded-gnosis-v18` | **Current production** 🚀 |
-| **v18-vision** | v18-prod + vision + adaptive MTP 2/4 | [Vision + adaptive MTP](v18-vision/) |
+| **v18-vision** | v18-prod + vision + adaptive MTP 2/4 | **Current production** 🚀 |
+| **v18** | `gilded-gnosis-v18` (text-only, fixed MTP k=4) | [Previous production](v18/) |
 | v16 | `fathomless-firmament-v16-unified` | [Legacy fallback](v16/) |
 
 **Forum post:** [GLM-5.2 Int4-Int8 on 8× GB10 — 1,329 t/s prefill, 66 t/s peak decode](https://forums.developer.nvidia.com/t/glm-5-2-int4-int8-on-8x-gb10-1-200-t-s-prefill-33-54-t-s-avg-decode-generic-coding-structured/376831?u=ciprianveg)
@@ -38,11 +38,15 @@ Skip the build entirely — pull a prebuilt image from GitHub Container Registry
 
 | Tag | Contents | Use when |
 |-----|----------|----------|
+| `ghcr.io/ciprianveg/gb10-glm-5.2:v18-vision` | v18-prod + vision (MoonViT + PatchMerger) + adaptive MTP 2/4 | **Production with image understanding** |
+| `ghcr.io/ciprianveg/gb10-glm-5.2:v18-prod` | Base + all 7 production runtime mods baked in | Text-only deploy matching the v18 recipes |
 | `ghcr.io/ciprianveg/gb10-glm-5.2:v18-base` | Compiled stack + source patches, **no runtime mods** | You want to select/tune mods yourself via `v18/mods/*/run.sh` |
-| `ghcr.io/ciprianveg/gb10-glm-5.2:v18-prod` | Base + all 7 production runtime mods baked in | Zero-config deploy matching the v18 recipes |
 
 ```bash
-# Zero-config production image
+# Production with vision + adaptive MTP
+docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18-vision
+
+# Text-only production
 docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18-prod
 
 # Or the mod-free base (apply mods yourself at deploy)
