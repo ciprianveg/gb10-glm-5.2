@@ -2,7 +2,7 @@
 
 **Vision (MoonViT-3d + PatchMerger) · Adaptive MTP 2/4 · 1,329 t/s prefill · 66 t/s peak decode**
 
-Serves [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (in-checkpoint MTP, 256 experts) on an **8-node DGX Spark GB10 cluster** via TP8+PP1 with adaptive MTP speculative decoding, plus image understanding via [baseten/GLM-5.2-Vision-NVFP4](https://huggingface.co/baseten/GLM-5.2-Vision-NVFP4) (MoonViT-3d vision tower + PatchMerger projector). Vision and adaptive MTP overlay by [CosmicRaisins/glm-5.2-gb10](https://github.com/CosmicRaisins/glm-5.2-gb10).
+Serves [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (in-checkpoint MTP, 256 experts) on an **8-node DGX Spark GB10 cluster** via TP8+PP1 with adaptive MTP speculative decoding, plus image understanding via [baseten/GLM-5.2-Vision-NVFP4](https://huggingface.co/baseten/GLM-5.2-Vision-NVFP4) (MoonViT-3d vision tower + PatchMerger projector). Vision and adaptive MTP overlay by [CosmicRaisins/glm-5.2-gb10](https://github.com/CosmicRaisins/glm-5.2-gb10), forward-porting [aidendle94](https://huggingface.co/aidendle94)'s acceptance-length adaptive speculative decoding concept.
 
 | Version | Stack | Status |
 |---------|-------|--------|
