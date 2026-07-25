@@ -7,6 +7,7 @@ Serves [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2
 | Version | Stack | Status |
 |---------|-------|--------|
 | **v18** | `gilded-gnosis-v18` | **Current production** 🚀 |
+| **v18-vision** | v18-prod + vision + adaptive MTP 2/4 | [Vision + adaptive MTP](v18-vision/) |
 | v16 | `fathomless-firmament-v16-unified` | [Legacy fallback](v16/) |
 
 **Forum post:** [GLM-5.2 Int4-Int8 on 8× GB10 — 1,329 t/s prefill, 66 t/s peak decode](https://forums.developer.nvidia.com/t/glm-5-2-int4-int8-on-8x-gb10-1-200-t-s-prefill-33-54-t-s-avg-decode-generic-coding-structured/376831?u=ciprianveg)
@@ -49,6 +50,18 @@ docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18-base
 ```
 
 The base image is the canonical artifact; `v18-prod` is a convenience layer with the [production mod set](v18/recipes/) pre-applied. Both are single-arch `linux/arm64` built for GB10 / sm_121 — they will not run on x86_64 or non-Blackwell GPUs. See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream credits.
+
+---
+
+## v18-vision (vision + adaptive MTP 2/4)
+
+A thin 9-file overlay on top of `v18-prod` that adds **GLM-5.2 vision** (MoonViT-3d + PatchMerger, weights from [baseten/GLM-5.2-Vision-NVFP4](https://huggingface.co/baseten/GLM-5.2-Vision-NVFP4)) and **adaptive MTP 2/4** (runtime speculative-depth ratcheting, from [CosmicRaisins/glm-5.2-gb10](https://github.com/CosmicRaisins/glm-5.2-gb10)). Serves a composite checkpoint that symlinks the QuantTrio Int4-Int8 text weights and the baseten NVFP4 vision snapshot into one tree (~0.87 GiB of new vision weights; zero-copy).
+
+```bash
+docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18-vision
+```
+
+See [`v18-vision/README.md`](v18-vision/README.md) for the vision-tower download, composite-model assembly, build, and launch instructions. Recipe: [`v18-vision/recipes/glm52-int4int8-v18-vision.yaml`](v18-vision/recipes/glm52-int4int8-v18-vision.yaml).
 
 ---
 
@@ -166,6 +179,12 @@ Seven runtime mods are applied by the v18 recipe at container startup. Each live
 │   ├── build.sh               v18 build script
 │   ├── mods/                  all 7 v18 runtime mods
 │   └── recipes/               v18 recipes (production + DSpark variants)
+├── v18-vision/                v18-prod + vision + adaptive MTP 2/4 overlay
+│   ├── Dockerfile             9-file overlay on v18-prod
+│   ├── build.sh               overlay build script
+│   ├── overlay/vllm/...       the 9 overlaid vLLM .py files
+│   ├── scripts/               composite assembler + registry overlay
+│   └── recipes/               v18-vision recipe
 ├── README.md
 └── ATTRIBUTION.md
 ```
