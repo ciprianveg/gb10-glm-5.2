@@ -107,7 +107,6 @@ Layer over `v18-prod`. From the repo root:
 ```bash
 docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18-prod
 ./v18-vision/build.sh           # build only
-./v18-vision/build.sh --push    # build + push to GHCR
 ```
 
 The Dockerfile COPYs the 9 overlay files into `/opt/venv/lib/python3.12/site-packages/vllm/...` and runs `python3 -m compileall -q` on them. No source rebuild — this is a sub-second layer on top of the v18-prod image.

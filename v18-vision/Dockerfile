@@ -16,7 +16,6 @@
 # Build (after v18-prod exists in the registry):
 #   docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18-prod
 #   ./v18-vision/build.sh           # build only
-#   ./v18-vision/build.sh --push    # build + push to GHCR
 #
 # Image: linux/arm64, built for GB10 / sm_121 — will NOT run on x86_64.
 
