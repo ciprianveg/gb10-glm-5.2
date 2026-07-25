@@ -172,6 +172,29 @@ Key serve args:
 - **Adaptive MTP 2/4** — runtime depth ratcheting based on acceptance (vs v18-prod's fixed `k=4`).
 - **Cudagraph compat fix** for the adaptive-spec branch on v18's `decode_query_len = 1` speculator.
 
+## Coding-only: disable adaptive MTP, keep fixed k=4
+
+If you're using this image for **text/coding only** (no image inputs), adaptive MTP 2/4 adds overhead with no benefit — coding workloads have consistently high acceptance at `k=4`, so the depth ratcheting just adds controller cost. Keep fixed `k=4` (same as v18-prod) by removing the adaptive-MTP env vars and the `adaptive_speculative_tokens_window` flag from the recipe:
+
+```yaml
+env:
+  # Remove these two lines:
+  # VLLM_ADAPTIVE_SPEC_DEPTHS: "2,4"
+  # VLLM_MTP_INSTRUMENT: "1"
+  # VLLM_MTP_INSTRUMENT_WINDOW: "32"
+```
+
+```yaml
+command: |
+  vllm serve ... \
+    --speculative-config '{{"method":"mtp","quantization":"compressed-tensors","draft_attention_backend":"B12X_MLA_SPARSE","num_speculative_tokens":4,"draft_tensor_parallel_size":1}}' \
+    # Remove: "adaptive_speculative_tokens_window":32
+```
+
+With adaptive MTP disabled, the overlay's `acceptance_length.py` controller is inert (no `VLLM_ADAPTIVE_SPEC_DEPTHS` env → no adaptation), and the speculator runs fixed `k=4` exactly like v18-prod. You still get vision support — just without the adaptive-depth overhead.
+
+Alternatively, for pure text/coding workloads with no vision needs at all, just use `ghcr.io/ciprianveg/gb10-glm-5.2:v18-prod` directly.
+
 ## Credits
 
 - **CosmicRaisins** ([https://github.com/CosmicRaisins/glm-5.2-gb10](https://github.com/CosmicRaisins/glm-5.2-gb10), Apache-2.0): adaptive MTP 2/4/5 controller (`acceptance_length.py`), GLM-5.2 vision model overlay (`glm5v.py`, `Glm5vConfig`, registry registration, MTP-compatible multimodal wrapper), composite checkpoint assembler, pr72-1 DCP draft config propagation patch.
