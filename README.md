@@ -1,20 +1,74 @@
-# GLM-5.2 on DGX Spark (8× GB10) — v18-vision (Gilded Gnosis + Vision + Adaptive MTP)
+# GLM-5.2 on DGX Spark (8× GB10) — v18.1-vision (native SM121 + optional NVFP4 KV cache)
 
-**Vision (MoonViT-3d + PatchMerger) · Adaptive MTP 2/4 · 1,329 t/s prefill · 66 t/s peak decode**
+**Vision (MoonViT-3d + PatchMerger) · Adaptive MTP 2/4/5 · ~1,341 t/s prefill**
 
 Serves [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (in-checkpoint MTP, 256 experts) on an **8-node DGX Spark GB10 cluster** via TP8+PP1 with adaptive MTP speculative decoding, plus image understanding via [baseten/GLM-5.2-Vision-NVFP4](https://huggingface.co/baseten/GLM-5.2-Vision-NVFP4) (MoonViT-3d vision tower + PatchMerger projector). Vision and adaptive MTP overlay by [CosmicRaisins/glm-5.2-gb10](https://github.com/CosmicRaisins/glm-5.2-gb10), forward-porting [aidendle94](https://huggingface.co/aidendle94)'s acceptance-length adaptive speculative decoding concept.
 
 | Version | Stack | Status |
 |---------|-------|--------|
-| **v18-vision** | v18-prod + vision + adaptive MTP 2/4 | **Current production** 🚀 |
+| **v18.1-vision** | v18-vision + native sm_121 rebuild + optional NVFP4 MLA KV cache | **Current production** 🚀 |
+| **v18-vision** | v18-prod + vision + adaptive MTP 2/4 (sm_120 forward-compat) | [Previous production](v18-vision/) |
 | **v18** | `gilded-gnosis-v18` (text-only, fixed MTP k=4) | [Previous production](v18/) |
 | v16 | `fathomless-firmament-v16-unified` | [Legacy fallback](v16/) |
 
-**Forum post:** [GLM-5.2 Int4-Int8 on 8× GB10 — 1,329 t/s prefill, 66 t/s peak decode](https://forums.developer.nvidia.com/t/glm-5-2-int4-int8-on-8x-gb10-1-200-t-s-prefill-33-54-t-s-avg-decode-generic-coding-structured/376831?u=ciprianveg)
+**v18.1-vision** rebuilds vLLM in-place on v18-vision for **native sm_121 cubins**, which is what
+enables the **NVFP4 MLA KV-cache** kernel block (the v18 image's sm_120 forward-compat cubins skip
+the FP4 SM12x kernel set). Native sm_121 is **not** a decode-speedup over sm_120 — decode is
+dominated by MTP-acceptance variance run-to-run (we observed 31.98–52.40 t/s @ d100000 across
+runs with nothing else changed), so single-run tg comparisons are not meaningful. **Prefill is a
+stable measurement (prefill doesn't use MTP) and is consistently slightly faster on sm_121:
++0.4% to +2.0% across depths and runs.** The reason to adopt v18.1 is the **NVFP4 KV-cache
+option** (plus that small prefill bump). **fp8 remains the default and recommended KV cache**;
+NVFP4 (`nvfp4_ds_mla`) is an opt-in for workloads that need more context than fp8 provides (~1.52×
+KV density, ~10% slower prefill). See [`v18-vision/README-v18.1.md`](v18-vision/README-v18.1.md)
+for the full guide, the `nvfp4_ds_mla`-vs-`nvfp4` gotcha, and validation.
+
+| v18.1 recipe | KV cache | When |
+|---|---|---|
+| [`glm52-int4int8-v18.1-vision.yaml`](v18-vision/recipes/glm52-int4int8-v18.1-vision.yaml) | `fp8_ds_mla` | **Default** — all v18 workloads |
+| [`glm52-int4int8-v18.1-vision-nvfp4.yaml`](v18-vision/recipes/glm52-int4int8-v18.1-vision-nvfp4.yaml) | `nvfp4_ds_mla` | Opt-in for max context (~1.52× KV density, ~10% slower prefill — see [v18.1 guide](v18-vision/README-v18.1.md)) |
+
+**Forum post (v18):** [GLM-5.2 Int4-Int8 on 8× GB10 — 1,329 t/s prefill, 66 t/s peak decode](https://forums.developer.nvidia.com/t/glm-5-2-int4-int8-on-8x-gb10-1-200-t-s-prefill-33-54-t-s-avg-decode-generic-coding-structured/376831?u=ciprianveg) (v18.1 numbers are in the [v18.1 guide](v18-vision/README-v18.1.md#benchmarks-v181-vision-fp8-kv-cache-8--gb10-tp8))
 
 ---
 
-## Quick Start (v18)
+## Quick Start (v18.1 — current production)
+
+The fastest path is the prebuilt image (no build needed):
+
+```bash
+# 1. Pull the current production image
+docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18.1-vision
+
+# 2. Deploy (from spark-vllm-docker) — fp8 KV cache (default)
+./run-recipe.sh ../gb10-glm-5.2/v18-vision/recipes/glm52-int4int8-v18.1-vision.yaml --setup
+#    or the NVFP4 opt-in (max context, ~10% slower prefill):
+./run-recipe.sh ../gb10-glm-5.2/v18-vision/recipes/glm52-int4int8-v18.1-vision-nvfp4.yaml --setup
+```
+
+> **First boot:** CuTe DSL + Triton kernels JIT-compile for each unique batch shape. Expect latency spikes (1-2 s) during the first ~10-20 requests. After warmup, decode speed matches and surpasses v16. For persistent caches, mount the directories listed in the [warmup section](#warmup--cache-requirements).
+
+### Build v18.1-vision yourself (optional)
+
+The v18.1-vision image rebuilds vLLM in-place on the v18-vision image (no external build harness
+needed — the v18-vision image already contains the toolchain + vLLM source):
+
+```bash
+# 1. Pull the base
+docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18-vision
+
+# 2. Build v18.1-vision (~30-60 min vLLM CUDA-extension rebuild)
+cd gb10-glm-5.2
+./v18-vision/build-nvfp4.sh            # builds ghcr.io/ciprianveg/gb10-glm-5.2:v18.1-vision
+```
+
+See [`v18-vision/README-v18.1.md`](v18-vision/README-v18.1.md) for what the rebuild does (native
+sm_121 + the NVFP4 kernel enablement) and the `nvfp4_ds_mla`-vs-`nvfp4` gotcha.
+
+### Build v18 / v18-vision from source (legacy)
+
+<details>
+<summary>Legacy v18 build (requires local-inference-lab/blackwell-llm-docker)</summary>
 
 ```bash
 # 1. Clone dependencies
@@ -29,8 +83,7 @@ cd ../gb10-glm-5.2
 cd ../spark-vllm-docker
 ./run-recipe.sh ../gb10-glm-5.2/v18/recipes/glm52-int4int8-v18.yaml --setup
 ```
-
-> **First boot:** CuTe DSL + Triton kernels JIT-compile for each unique batch shape. Expect latency spikes (1-2 s) during the first ~10-20 requests. After warmup, decode speed matches and surpasses v16. For persistent caches, mount the directories listed in the [warmup section](#warmup--cache-requirements).
+</details>
 
 ### Prebuilt Images (GHCR)
 
@@ -38,12 +91,16 @@ Skip the build entirely — pull a prebuilt image from GitHub Container Registry
 
 | Tag | Contents | Use when |
 |-----|----------|----------|
-| `ghcr.io/ciprianveg/gb10-glm-5.2:v18-vision` | v18-prod + vision (MoonViT + PatchMerger) + adaptive MTP 2/4 | **Production with image understanding** |
+| `ghcr.io/ciprianveg/gb10-glm-5.2:v18.1-vision` | v18-vision + native sm_121 rebuild + NVFP4 MLA KV-cache kernels | **Current production with image understanding** (use fp8 by default; NVFP4 KV opt-in) |
+| `ghcr.io/ciprianveg/gb10-glm-5.2:v18-vision` | v18-prod + vision (MoonViT + PatchMerger) + adaptive MTP 2/4 (sm_120) | Previous production (vision, sm_120 forward-compat) |
 | `ghcr.io/ciprianveg/gb10-glm-5.2:v18-prod` | Base + all 7 production runtime mods baked in | Text-only deploy matching the v18 recipes |
 | `ghcr.io/ciprianveg/gb10-glm-5.2:v18-base` | Compiled stack + source patches, **no runtime mods** | You want to select/tune mods yourself via `v18/mods/*/run.sh` |
 
 ```bash
-# Production with vision + adaptive MTP
+# Current production with vision + native sm_121 + optional NVFP4 KV cache
+docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18.1-vision
+
+# Previous production (vision, sm_120 forward-compat)
 docker pull ghcr.io/ciprianveg/gb10-glm-5.2:v18-vision
 
 # Text-only production
@@ -70,6 +127,8 @@ See [`v18-vision/README.md`](v18-vision/README.md) for the vision-tower download
 ---
 
 ## v18 Benchmarks (llama-benchy, coherent corpus, TP8/DCP1, MTP k=4)
+
+> **v18.1-vision benchmarks** (current production) are in the [v18.1 guide — Benchmarks](v18-vision/README-v18.1.md#benchmarks-v181-vision-fp8-kv-cache-8--gb10-tp8). The table below is the v18 (sm_120, previous) reference.
 
 > **Important:** For accurate results, first run a warmup pass (~20 requests at varying context depths) to trigger CuTe DSL + Triton kernel compilation. Without warmup, first-batch JIT overhead inflates TTFR and depresses decode t/s. With persistent cache mounts (see below), warmup is only needed once.
 
@@ -185,10 +244,14 @@ Seven runtime mods are applied by the v18 recipe at container startup. Each live
 │   └── recipes/               v18 recipes (production + DSpark variants)
 ├── v18-vision/                v18-prod + vision + adaptive MTP 2/4 overlay
 │   ├── Dockerfile             9-file overlay on v18-prod
-│   ├── build.sh               overlay build script
+│   ├── Dockerfile.nvfp4       v18.1-vision: in-place vLLM rebuild (native sm_121 + NVFP4 kernels)
+│   ├── build.sh               overlay build script (v18-vision)
+│   ├── build-nvfp4.sh         v18.1-vision build script
+│   ├── README.md              v18-vision guide (vision download, composite assembly, build)
+│   ├── README-v18.1.md        v18.1-vision guide (native sm_121 + NVFP4 KV cache, benchmarks)
 │   ├── overlay/vllm/...       the 9 overlaid vLLM .py files
 │   ├── scripts/               composite assembler + registry overlay
-│   └── recipes/               v18-vision recipe
+│   └── recipes/               v18-vision + v18.1-vision (fp8 default + nvfp4 opt-in) recipes
 ├── README.md
 └── ATTRIBUTION.md
 ```
