@@ -2,7 +2,7 @@
 
 **Vision (MoonViT-3d + PatchMerger) · Adaptive MTP 2/4/5 · ~1,341 t/s prefill**
 
-Serves [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (in-checkpoint MTP, 256 experts) on an **8-node DGX Spark GB10 cluster** via TP8+PP1 with adaptive MTP speculative decoding, plus image understanding via [baseten/GLM-5.2-Vision-NVFP4](https://huggingface.co/baseten/GLM-5.2-Vision-NVFP4) (MoonViT-3d vision tower + PatchMerger projector). Vision and adaptive MTP overlay by [CosmicRaisins/glm-5.2-gb10](https://github.com/CosmicRaisins/glm-5.2-gb10), forward-porting [aidendle94](https://huggingface.co/aidendle94)'s acceptance-length adaptive speculative decoding concept.
+Serves [QuantTrio/GLM-5.2-Int4-Int8Mix](https://huggingface.co/QuantTrio/GLM-5.2-Int4-Int8Mix) (in-checkpoint MTP, 256 experts) on an **8-node DGX Spark GB10 cluster** via TP8+PP1 with adaptive MTP speculative decoding, plus image understanding via [baseten/GLM-5.2-Vision-NVFP4](https://huggingface.co/baseten/GLM-5.2-Vision-NVFP4) (MoonViT-3d vision tower + PatchMerger projector). Vision and adaptive MTP overlay by [CosmicRaisins/glm-5.2-gb10](https://github.com/CosmicRaisins/glm-5.2-gb10), forward-porting [aidendle94](https://huggingface.co/aidendle94)'s acceptance-length adaptive speculative decoding concept. Native sm_121 + NVFP4 MLA KV-cache enablement (v18.1-vision) follows [@light_foundry](https://x.com/light_foundry)'s NVFP4 compile-fix approach.
 
 | Version | Stack | Status |
 |---------|-------|--------|
