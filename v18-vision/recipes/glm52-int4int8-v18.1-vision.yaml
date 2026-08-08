@@ -76,7 +76,7 @@ env:
 
   # v18 DCP fast-path (auto-enabled for TP8/DCP4+, disabled for DCP1)
   VLLM_DCP_QUERY_SPLIT: "0"
-  VLLM_B12X_MLA_CKG_GATHER: "1"
+  VLLM_B12X_MLA_CKV_GATHER: "1"
 
   VLLM_ADAPTIVE_SPEC_DEPTHS: "2,4,5"
   VLLM_MTP_INSTRUMENT: "1"
